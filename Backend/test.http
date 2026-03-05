@@ -1,0 +1,16 @@
+### Test de création de post avec image
+POST http://localhost:5000/posts
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6IlfDqXJpIEJvbmkiLCJhdmF0YXIiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJSUVkNllFSGtnLWRDZmxLTHhEQ1hIZmpFcHVkdE4tc3ZjbzBVZ0oydXp3NXNreENOSj1zOTYtYyIsImlhdCI6MTc3MjU5NTU4OCwiZXhwIjoxNzczMjAwMzg4fQ.-5iE0y_PILyuewDj_z-MgRu5kf6GS92cHZ922jmQBU4
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="content"
+
+Mon premier post avec image via REST Client !
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="images"; filename="image.jpg"
+Content-Type: image/jpeg
+
+< ./src/imagesTest/chat.jpeg
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
