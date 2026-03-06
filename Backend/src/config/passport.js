@@ -41,6 +41,7 @@ passport.use(new GoogleStrategy({
     } catch (err) {
       console.error('❌ Erreur Passport :', err);
       return done(err, null);
+
     }
   }
 ));
