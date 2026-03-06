@@ -29,12 +29,12 @@ router.get('/google/callback',
     });
 
     // Redirige vers le frontend
-    //res.redirect(`${process.env.CLIENT_URL}/feed`);
+    res.redirect(`${process.env.CLIENT_URL}/feed`);
        res.json({
         message: "Authentification réussie",
         user: req.user
       });
-    //juste en haut, j'ai une solution temporaire pour tester l'authentification, mais normalement il faut rediriger vers le frontend
+    
   }
 );
 
