@@ -28,12 +28,14 @@ router.get('/google/callback',
       sameSite: 'lax',
     });
 
-    // Redirige vers le frontend
-   // res.redirect(`${process.env.CLIENT_URL}/feed`);
-       res.json({
-        message: "Authentification réussie",
-        user: req.user
-      });
+    // Redirige vers le frontend avec token + user dans l'URL
+    const userData = encodeURIComponent(JSON.stringify({
+      id: req.user.id,
+      name: req.user.name,
+      avatar: req.user.avatar,
+    }));
+
+    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}&user=${userData}`);
     
   }
 );
