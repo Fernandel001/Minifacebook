@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getFeed, createPost, likePost, deletePost } from '../api/posts';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
 import PostCard from '../components/PostCard';
 
 export default function Feed() {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [content, setContent] = useState('');
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
 
@@ -30,19 +27,16 @@ export default function Feed() {
 
   const handlePost = async (e) => {
     e.preventDefault();
-    if (!content.trim() && !image) return;
+    if (!content.trim()) return;
     setPosting(true);
 
     try {
       const formData = new FormData();
-      if (content.trim()) formData.append('content', content);
-      if (image) formData.append('images', image);
+      formData.append('content', content);
 
       const res = await createPost(formData);
       setPosts(prev => [res.data, ...prev]);
       setContent('');
-      setImage(null);
-      setImagePreview(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -72,18 +66,6 @@ export default function Feed() {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImage(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const removeImage = () => {
-    setImage(null);
-    setImagePreview(null);
   };
 
   if (loading) return (
@@ -116,55 +98,17 @@ export default function Feed() {
               className="compose-textarea"
             />
 
-            {/* Preview image */}
-            {imagePreview && (
-              <div style={{ position: 'relative', display: 'inline-block', marginTop: '10px' }}>
-                <img src={imagePreview} style={{
-                  maxHeight: '160px', maxWidth: '100%', borderRadius: '10px',
-                  border: '1px solid var(--border)', objectFit: 'cover', display: 'block',
-                }} />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  style={{
-                    position: 'absolute', top: '6px', right: '6px',
-                    background: 'rgba(0,0,0,.7)', border: 'none', color: '#fff',
-                    borderRadius: '50%', width: '22px', height: '22px',
-                    cursor: 'pointer', fontSize: '12px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >✕</button>
-              </div>
-            )}
-
-            {/* Footer actions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
-              <label style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                fontSize: '13px', color: 'var(--text-2)', cursor: 'pointer',
-                padding: '6px 10px', borderRadius: '8px', transition: 'all .15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--accent)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)'; }}
-              >
-                📷 Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleImageChange}
-                />
-              </label>
-
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
               <button
                 type="submit"
-                disabled={posting || (!content.trim() && !image)}
+                disabled={posting || !content.trim()}
                 style={{
                   background: 'var(--accent)', color: '#fff',
                   border: 'none', borderRadius: '99px',
                   padding: '8px 20px', fontSize: '13.5px', fontWeight: 600,
                   fontFamily: 'var(--font-ui)', cursor: 'pointer',
-                  transition: 'all .18s', opacity: (posting || (!content.trim() && !image)) ? .4 : 1,
+                  transition: 'all .18s',
+                  opacity: (posting || !content.trim()) ? .4 : 1,
                 }}
                 onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--accent-h)'; }}
                 onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
