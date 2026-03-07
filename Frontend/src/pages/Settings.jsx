@@ -16,111 +16,121 @@ export default function Settings() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    setSaving(true);
-    setSuccess(false);
-    setError('');
-
+    setSaving(true); setSuccess(false); setError('');
     try {
       const res = await updateUser(user.id, { name: name.trim(), bio: bio.trim() });
-      // Met à jour le contexte auth avec les nouvelles infos
       const updatedUser = { ...user, name: res.data.name, bio: res.data.bio, avatar: res.data.avatar };
       login(updatedUser, localStorage.getItem('token'));
       setSuccess(true);
     } catch (err) {
-      console.error(err);
       setError('Une erreur est survenue. Réessayez.');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  const handleLogout = async () => { await logout(); navigate('/login'); };
 
   return (
-    <div className="space-y-4 max-w-lg mx-auto">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '520px', margin: '0 auto' }}>
 
-      {/* Profil */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="font-semibold text-gray-800 mb-4">Mon profil</h2>
+      <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '22px', fontWeight: 700 }}>Paramètres</h1>
 
-        {/* Avatar (lecture seule — géré via Google) */}
-        <div className="flex items-center gap-4 mb-5">
-          <img
-            src={user?.avatar || 'https://i.pravatar.cc/64'}
-            className="w-16 h-16 rounded-full object-cover"
-          />
+      {/* Profile card */}
+      <div className="card" style={{ padding: '20px' }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '16px' }}>
+          Mon profil
+        </h2>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', padding: '12px', background: 'var(--bg3)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+          <img src={user?.avatar || 'https://i.pravatar.cc/56'}
+            className="avatar" style={{ width: 52, height: 52 }} />
           <div>
-            <p className="text-sm font-medium">{user?.name}</p>
-            <p className="text-xs text-gray-400">Photo gérée par votre compte Google</p>
+            <div style={{ fontSize: '14px', fontWeight: 600 }}>{user?.name}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
+              Photo gérée par votre compte Google
+            </div>
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nom affiché</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)', marginBottom: '6px' }}>
+              Nom affiché
+            </label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
               maxLength={60}
               placeholder="Votre nom"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)', marginBottom: '6px' }}>
+              Bio
+            </label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
               rows={3}
               maxLength={200}
               placeholder="Parlez un peu de vous..."
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              className="input"
             />
-            <p className="text-xs text-gray-400 text-right mt-0.5">{bio.length}/200</p>
+            <div style={{ textAlign: 'right', fontSize: '11.5px', color: 'var(--text-3)', marginTop: '4px' }}>
+              {bio.length}/200
+            </div>
           </div>
 
           {success && (
-            <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✅ Profil mis à jour !</p>
+            <div style={{ background: 'rgba(62,207,142,.1)', border: '1px solid rgba(62,207,142,.3)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: '13.5px', color: 'var(--green)' }}>
+              ✅ Profil mis à jour avec succès !
+            </div>
           )}
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <div style={{ background: 'rgba(245,101,101,.1)', border: '1px solid rgba(245,101,101,.3)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: '13.5px', color: 'var(--red)' }}>
+              {error}
+            </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving || !name.trim()}
-            className="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-40 transition"
-          >
-            {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+          <button type="submit" disabled={saving || !name.trim()} className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>
+            {saving ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                Enregistrement...
+              </span>
+            ) : 'Enregistrer'}
           </button>
         </form>
       </div>
 
-      {/* Mon profil public */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="font-semibold text-gray-800 mb-3">Mon profil public</h2>
-        <p className="text-sm text-gray-500 mb-3">Voir comment les autres vous voient</p>
-        <button
-          onClick={() => navigate(`/profile/${user?.id}`)}
-          className="text-sm text-blue-500 hover:underline"
-        >
-          → Voir mon profil
+      {/* View profile */}
+      <div className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600 }}>Mon profil public</div>
+          <div style={{ fontSize: '12.5px', color: 'var(--text-3)', marginTop: '2px' }}>Voir comme les autres vous voient</div>
+        </div>
+        <button onClick={() => navigate(`/profile/${user?.id}`)} className="btn btn-ghost" style={{ fontSize: '13px' }}>
+          Voir →
         </button>
       </div>
 
-      {/* Déconnexion */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="font-semibold text-gray-800 mb-1">Session</h2>
-        <p className="text-sm text-gray-500 mb-4">Connecté en tant que <strong>{user?.name}</strong></p>
-        <button
-          onClick={handleLogout}
-          className="w-full border border-red-200 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition"
-        >
-          Se déconnecter
+      {/* Session */}
+      <div className="card" style={{ padding: '16px 20px' }}>
+        <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Session</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '14px' }}>
+          Connecté en tant que <span style={{ color: 'var(--text-2)', fontWeight: 500 }}>{user?.name}</span>
+        </div>
+        <button onClick={handleLogout} className="btn btn-danger" style={{
+          border: '1px solid rgba(245,101,101,.3)',
+          background: 'rgba(245,101,101,.07)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '9px 16px',
+          fontSize: '13.5px',
+          width: '100%',
+          justifyContent: 'center',
+        }}>
+          ↩ Se déconnecter
         </button>
       </div>
     </div>

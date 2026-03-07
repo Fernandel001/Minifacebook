@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { getConversations, getMessages, startConversation } from '../api/messages';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { Link } from 'react-router-dom';
 
 export default function Messages() {
   const { user } = useAuth();
@@ -11,51 +10,41 @@ export default function Messages() {
   const [searchParams] = useSearchParams();
 
   const [conversations, setConversations] = useState([]);
-  const [activeConv, setActiveConv] = useState(null); // { conversation_id, other_user_name, other_user_avatar, other_user_id }
+  const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [showList, setShowList] = useState(true); // mobile toggle
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Charger les conversations
-  useEffect(() => {
-    loadConversations();
-  }, []);
+  useEffect(() => { loadConversations(); }, []);
 
-  // Ouvrir une conv depuis l'URL (?with=userId)
   useEffect(() => {
     const targetId = searchParams.get('with');
-    if (targetId) {
-      handleStartConversation(parseInt(targetId));
-    }
+    if (targetId) handleStartConversation(parseInt(targetId));
   }, [searchParams]);
 
-  // Socket : écoute les nouveaux messages
   useEffect(() => {
     if (!socket) return;
-
     const handleNewMessage = (msg) => {
       if (activeConv && msg.conversation_id === activeConv.conversation_id) {
         setMessages(prev => [...prev, msg]);
-        // Marque comme lu
         socket.emit('mark_read', { conversationId: activeConv.conversation_id });
       }
-      // Met à jour la preview dans la liste
       setConversations(prev => prev.map(c =>
         c.conversation_id === msg.conversation_id
-          ? { ...c, last_message: msg.content, last_message_at: msg.created_at, unread_count: activeConv?.conversation_id === msg.conversation_id ? 0 : Number(c.unread_count) + 1 }
+          ? { ...c, last_message: msg.content, last_message_at: msg.created_at,
+              unread_count: activeConv?.conversation_id === msg.conversation_id ? 0 : Number(c.unread_count) + 1 }
           : c
       ));
     };
-
     socket.on('new_message', handleNewMessage);
     return () => socket.off('new_message', handleNewMessage);
   }, [socket, activeConv]);
 
-  // Scroll automatique en bas
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -64,138 +53,142 @@ export default function Messages() {
     try {
       const res = await getConversations();
       setConversations(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingConvs(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoadingConvs(false); }
   };
 
   const handleSelectConv = async (conv) => {
     setActiveConv(conv);
+    setShowList(false);
     setLoadingMsgs(true);
     setMessages([]);
-
     try {
       const res = await getMessages(conv.conversation_id);
       setMessages(res.data);
-
-      // Rejoindre la room socket
       socket?.emit('join_conversation', conv.conversation_id);
       socket?.emit('mark_read', { conversationId: conv.conversation_id });
-
-      // Reset unread count
       setConversations(prev => prev.map(c =>
         c.conversation_id === conv.conversation_id ? { ...c, unread_count: 0 } : c
       ));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingMsgs(false);
-      inputRef.current?.focus();
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoadingMsgs(false); inputRef.current?.focus(); }
   };
 
   const handleStartConversation = async (targetId) => {
     try {
-      const res = await startConversation(targetId);
-      const convId = res.data.conversation_id;
-      // Recharge les conversations pour avoir les infos
+      await startConversation(targetId);
       const convsRes = await getConversations();
       setConversations(convsRes.data);
-      const conv = convsRes.data.find(c => c.conversation_id === convId);
+      const conv = convsRes.data.find(c => c.other_user_id === targetId);
       if (conv) handleSelectConv(conv);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim() || !activeConv || !socket) return;
-
-    socket.emit('send_message', {
-      conversationId: activeConv.conversation_id,
-      content: input.trim(),
-    });
-
-    // Optimistic update
+    socket.emit('send_message', { conversationId: activeConv.conversation_id, content: input.trim() });
     setMessages(prev => [...prev, {
-      id: Date.now(),
-      conversation_id: activeConv.conversation_id,
-      sender_id: user.id,
-      content: input.trim(),
-      created_at: new Date().toISOString(),
-      sender_name: user.name,
-      sender_avatar: user.avatar,
-      optimistic: true,
+      id: Date.now(), conversation_id: activeConv.conversation_id,
+      sender_id: user.id, content: input.trim(),
+      created_at: new Date().toISOString(), optimistic: true,
     }]);
-
     setConversations(prev => prev.map(c =>
       c.conversation_id === activeConv.conversation_id
-        ? { ...c, last_message: input.trim(), last_message_at: new Date().toISOString() }
+        ? { ...c, last_message: input.trim(), last_message_at: new Date().toISOString(), last_sender_id: user.id }
         : c
     ));
-
     setInput('');
   };
 
   const isOnline = (userId) => onlineUsers.includes(userId);
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden flex h-[calc(100vh-5rem)]" style={{ maxHeight: '700px' }}>
+  const formatTime = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr);
+    if (diff < 60000) return 'maintenant';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
+    if (diff < 86400000) return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
 
-      {/* ─── Sidebar conversations ─── */}
-      <div className="w-72 shrink-0 border-r border-gray-100 flex flex-col">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">Messages</h2>
+  return (
+    <div style={{
+      display: 'flex',
+      background: 'var(--bg2)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)',
+      overflow: 'hidden',
+      height: 'calc(100vh - 110px)',
+      maxHeight: '680px',
+      minHeight: '400px',
+    }}>
+
+      {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
+      <div style={{
+        width: '280px', flexShrink: 0,
+        borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column',
+        // Sur mobile: masqué si conv active
+        ...((!showList && activeConv) ? { display: 'none' } : {}),
+      }} className="conv-sidebar">
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontSize: '16px', fontWeight: 700 }}>Messages</h2>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        <div style={{ overflowY: 'auto', flex: 1 }}>
           {loadingConvs ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
+              <div className="spinner" style={{ width: 24, height: 24, borderWidth: 2 }} />
             </div>
           ) : conversations.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <p className="text-2xl mb-2">💬</p>
-              <p className="text-sm text-gray-400">Aucune conversation</p>
+            <div className="empty-state" style={{ padding: '40px 16px' }}>
+              <span className="icon">💬</span>
+              <h3>Aucune conversation</h3>
+              <p>Visitez le profil d'un ami pour lui écrire</p>
             </div>
           ) : (
             conversations.map(conv => (
-              <button
-                key={conv.conversation_id}
-                onClick={() => handleSelectConv(conv)}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left ${
-                  activeConv?.conversation_id === conv.conversation_id ? 'bg-blue-50' : ''
-                }`}
+              <button key={conv.conversation_id} onClick={() => handleSelectConv(conv)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '11px 14px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                  background: activeConv?.conversation_id === conv.conversation_id
+                    ? 'var(--accent-dim)' : 'transparent',
+                  borderLeft: activeConv?.conversation_id === conv.conversation_id
+                    ? '3px solid var(--accent)' : '3px solid transparent',
+                  transition: 'all .12s',
+                }}
+                onMouseEnter={e => { if (activeConv?.conversation_id !== conv.conversation_id) e.currentTarget.style.background = 'var(--bg3)'; }}
+                onMouseLeave={e => { if (activeConv?.conversation_id !== conv.conversation_id) e.currentTarget.style.background = 'transparent'; }}
               >
-                {/* Avatar + indicateur en ligne */}
-                <div className="relative shrink-0">
-                  <img
-                    src={conv.other_user_avatar || 'https://i.pravatar.cc/40'}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <img src={conv.other_user_avatar || 'https://i.pravatar.cc/40'}
+                    className="avatar" style={{ width: 40, height: 40 }} />
                   {isOnline(conv.other_user_id) && (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
+                    <span style={{
+                      position: 'absolute', bottom: 0, right: 0,
+                      width: 10, height: 10, background: 'var(--green)',
+                      borderRadius: '50%', border: '2px solid var(--bg2)',
+                    }} />
                   )}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium truncate">{conv.other_user_name}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text)' }}>
+                      {conv.other_user_name}
+                    </span>
                     {conv.last_message_at && (
-                      <span className="text-xs text-gray-400 shrink-0 ml-1">
+                      <span style={{ fontSize: '11px', color: 'var(--text-3)', flexShrink: 0 }}>
                         {formatTime(conv.last_message_at)}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-400 truncate">
-                      {conv.last_sender_id === user.id ? 'Vous : ' : ''}{conv.last_message || 'Démarrer la conversation'}
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conv.last_sender_id === user.id ? 'Vous : ' : ''}{conv.last_message || '—'}
+                    </span>
                     {Number(conv.unread_count) > 0 && (
-                      <span className="ml-1 shrink-0 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      <span className="badge" style={{ marginLeft: '4px', flexShrink: 0, fontSize: '10px' }}>
                         {conv.unread_count}
                       </span>
                     )}
@@ -207,127 +200,139 @@ export default function Messages() {
         </div>
       </div>
 
-      {/* ─── Zone de chat ─── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* ─── Chat ────────────────────────────────────────────────────────── */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
+        ...(showList && !activeConv ? {} : {}),
+      }}>
         {!activeConv ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <p className="text-4xl mb-3">💬</p>
-            <p className="font-medium text-gray-700">Sélectionnez une conversation</p>
-            <p className="text-sm text-gray-400 mt-1">ou visitez le profil d'un ami pour lui écrire</p>
+          <div className="empty-state" style={{ flex: 1 }}>
+            <span className="icon">💬</span>
+            <h3>Sélectionnez une conversation</h3>
+            <p>ou visitez le profil d'un ami pour lui écrire</p>
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-              <div className="relative">
-                <img
-                  src={activeConv.other_user_avatar || 'https://i.pravatar.cc/40'}
-                  className="w-9 h-9 rounded-full object-cover"
-                />
+            {/* Chat header */}
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', gap: '10px',
+              background: 'var(--bg2)',
+            }}>
+              {/* Bouton retour mobile */}
+              <button onClick={() => setShowList(true)}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--text-2)',
+                  cursor: 'pointer', fontSize: '18px', padding: '0 4px',
+                  display: 'none',
+                }} className="back-btn">
+                ←
+              </button>
+
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img src={activeConv.other_user_avatar || 'https://i.pravatar.cc/38'}
+                  className="avatar" style={{ width: 36, height: 36 }} />
                 {isOnline(activeConv.other_user_id) && (
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
+                  <span style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 9, height: 9, background: 'var(--green)',
+                    borderRadius: '50%', border: '2px solid var(--bg2)',
+                  }} />
                 )}
               </div>
               <div>
-                <Link
-                  to={`/profile/${activeConv.other_user_id}`}
-                  className="text-sm font-semibold hover:underline"
-                >
+                <Link to={`/profile/${activeConv.other_user_id}`} style={{
+                  fontSize: '14px', fontWeight: 600, color: 'var(--text)',
+                }}>
                   {activeConv.other_user_name}
                 </Link>
-                <p className="text-xs text-gray-400">
-                  {isOnline(activeConv.other_user_id) ? '🟢 En ligne' : 'Hors ligne'}
-                </p>
+                <div style={{ fontSize: '11.5px', color: isOnline(activeConv.other_user_id) ? 'var(--green)' : 'var(--text-3)' }}>
+                  {isOnline(activeConv.other_user_id) ? '● En ligne' : '○ Hors ligne'}
+                </div>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {loadingMsgs ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
+                  <div className="spinner" style={{ width: 24, height: 24, borderWidth: 2 }} />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-400">Aucun message. Dites bonjour ! 👋</p>
+                <div className="empty-state">
+                  <span className="icon">👋</span>
+                  <p>Dites bonjour à {activeConv.other_user_name} !</p>
                 </div>
               ) : (
-                <>
-                  {messages.map((msg, i) => {
-                    const isMe = msg.sender_id === user.id;
-                    const showAvatar = !isMe && (i === 0 || messages[i - 1]?.sender_id !== msg.sender_id);
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : ''}`}
-                      >
-                        {/* Avatar (interlocuteur seulement) */}
-                        {!isMe && (
-                          <div className="w-7 shrink-0">
-                            {showAvatar && (
-                              <img
-                                src={msg.sender_avatar || 'https://i.pravatar.cc/28'}
-                                className="w-7 h-7 rounded-full object-cover"
-                              />
-                            )}
-                          </div>
+                messages.map((msg, i) => {
+                  const isMe = msg.sender_id === user.id;
+                  const showAvatar = !isMe && (i === 0 || messages[i - 1]?.sender_id !== msg.sender_id);
+                  return (
+                    <div key={msg.id} style={{
+                      display: 'flex', alignItems: 'flex-end', gap: '6px',
+                      flexDirection: isMe ? 'row-reverse' : 'row',
+                    }}>
+                      <div style={{ width: 26, flexShrink: 0 }}>
+                        {!isMe && showAvatar && (
+                          <img src={msg.sender_avatar || 'https://i.pravatar.cc/26'}
+                            className="avatar" style={{ width: 26, height: 26 }} />
                         )}
-
-                        <div className={`max-w-[65%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
-                          <div
-                            className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                              isMe
-                                ? 'bg-blue-500 text-white rounded-br-sm'
-                                : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                            } ${msg.optimistic ? 'opacity-70' : ''}`}
-                          >
-                            {msg.content}
-                          </div>
-                          <span className="text-xs text-gray-400 mt-0.5 px-1">
-                            {formatTime(msg.created_at)}
-                          </span>
-                        </div>
                       </div>
-                    );
-                  })}
-                  <div ref={bottomRef} />
-                </>
+                      <div style={{ maxWidth: '68%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                        <div style={{
+                          padding: '9px 13px',
+                          borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          background: isMe ? 'var(--accent)' : 'var(--bg3)',
+                          color: isMe ? '#fff' : 'var(--text)',
+                          fontSize: '14px', lineHeight: 1.5,
+                          border: isMe ? 'none' : '1px solid var(--border)',
+                          opacity: msg.optimistic ? .7 : 1,
+                        }}>
+                          {msg.content}
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '3px', padding: '0 4px' }}>
+                          {formatTime(msg.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
+              <div ref={bottomRef} />
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSend} className="px-4 py-3 border-t border-gray-100 flex gap-2">
+            <form onSubmit={handleSend} style={{
+              padding: '12px 14px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex', gap: '8px', alignItems: 'center',
+            }}>
               <input
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 placeholder={`Message ${activeConv.other_user_name}...`}
-                className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="input input-pill"
+                style={{ flex: 1, fontSize: '13.5px', padding: '9px 16px' }}
               />
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-600 disabled:opacity-40 transition"
-              >
+              <button type="submit" disabled={!input.trim()} className="btn btn-primary"
+                style={{ padding: '9px 16px', fontSize: '15px' }}>
                 ➤
               </button>
             </form>
           </>
         )}
       </div>
+
+      {/* Responsive */}
+      <style>{`
+        @media (max-width: 639px) {
+          .conv-sidebar { width: 100% !important; display: flex !important; }
+          .conv-sidebar[style*="display: none"] { display: none !important; }
+          .back-btn { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
-}
-
-function formatTime(dateStr) {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = now - date;
-  const oneDay = 86400000;
-
-  if (diff < 60000) return 'À l\'instant';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
-  if (diff < oneDay) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }

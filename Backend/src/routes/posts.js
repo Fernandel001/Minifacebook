@@ -9,7 +9,7 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
   const { content } = req.body;
   const authorId = req.user.id;
 
-  if (!content && req.files.length === 0) {
+  if (!content && (!req.files || req.files.length === 0)) {
     return res.status(400).json({ error: 'Une publication ne peut pas être vide' });
   }
 

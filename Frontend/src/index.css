@@ -1,1 +1,286 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
+/* ─── DESIGN TOKENS ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #0f1117;
+  --bg2:       #181c27;
+  --bg3:       #1e2333;
+  --border:    #2a3045;
+  --accent:    #4f8ef7;
+  --accent-h:  #6ba3ff;
+  --accent-dim:#1e3a6e;
+  --green:     #3ecf8e;
+  --red:       #f56565;
+  --text:      #e8ecf4;
+  --text-2:    #8b95b0;
+  --text-3:    #555f7a;
+  --radius:    14px;
+  --radius-sm: 8px;
+  --shadow:    0 4px 24px rgba(0,0,0,.45);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.3);
+  --font-ui:   'DM Sans', sans-serif;
+  --font-head: 'Syne', sans-serif;
+}
+
+/* ─── RESET ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; }
+input, textarea { font-family: inherit; }
+img { display: block; }
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ─── UTILITIES ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 99px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  transition: all .18s ease;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-h); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(79,142,247,.4); }
+
+.btn-ghost {
+  background: var(--bg3);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--border); color: var(--text); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--red);
+  border: 1px solid transparent;
+}
+.btn-danger:hover:not(:disabled) { background: rgba(245,101,101,.1); border-color: var(--red); }
+
+.btn-green {
+  background: var(--green);
+  color: #0a2e1f;
+}
+.btn-green:hover:not(:disabled) { filter: brightness(1.1); }
+
+.input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 10px 14px;
+  font-size: 14px;
+  transition: border-color .15s;
+  outline: none;
+}
+.input::placeholder { color: var(--text-3); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,.15); }
+
+.input-pill {
+  border-radius: 99px;
+  padding: 9px 16px;
+}
+
+textarea.input { resize: none; border-radius: var(--radius-sm); }
+
+/* ─── AVATAR ─────────────────────────────────────────────────────────────────── */
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* ─── SPINNER ────────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── BADGE ──────────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 99px;
+}
+
+/* ─── TABS ───────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px;
+}
+.tab {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(79,142,247,.35);
+}
+
+/* ─── EMPTY STATE ────────────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  gap: 10px;
+}
+.empty-state .icon { font-size: 36px; opacity: .6; }
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+.empty-state p { font-size: 13px; color: var(--text-3); }
+
+/* ─── FADE IN ────────────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp .25s ease forwards; }
+
+/* ─── LAYOUT PRINCIPAL ───────────────────────────────────────────────────────── */
+.layout-main {
+  padding-top: 64px;
+  /* Sur mobile : padding bottom pour la navbar du bas */
+  padding-bottom: 72px;
+}
+@media (min-width: 640px) {
+  .layout-main { padding-bottom: 24px; }
+}
+
+.page-content {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+
+/* ─── OVERRIDE TAILWIND / BROWSER DEFAULTS ───────────────────────────────────
+   Force tous les inputs et textareas à respecter le thème sombre,
+   peu importe les classes Tailwind présentes.
+*/
+input,
+textarea,
+select {
+  background-color: var(--bg3) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3) !important;
+  opacity: 1 !important;
+}
+
+/* Autofill Chrome — sinon fond jaune/blanc forcé */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg3) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  caret-color: var(--text) !important;
+}
+
+/* Focus ring cohérent */
+input:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(79,142,247,.15) !important;
+}
+
+/* ─── COMPOSE BOX ────────────────────────────────────────────────────────────── */
+.compose-textarea {
+  width: 100%;
+  background: var(--bg3) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  transition: border-color .15s;
+  box-sizing: border-box;
+  -webkit-text-fill-color: var(--text) !important;
+}
+.compose-textarea::placeholder {
+  color: var(--text-3) !important;
+  opacity: 1;
+}
+.compose-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+}
+.compose-textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg3) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+}

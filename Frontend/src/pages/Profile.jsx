@@ -32,40 +32,29 @@ export default function Profile() {
     try {
       const res = await getUser(targetId);
       setProfile(res.data);
-
-      // Charger les posts si on est ami ou c'est notre propre profil
       if (res.data.relation === 'friends' || me?.id === targetId) {
         setLoadingPosts(true);
         try {
           const postsRes = await getUserPosts(targetId);
           setPosts(postsRes.data);
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setLoadingPosts(false);
-        }
+        } catch (err) { console.error(err); }
+        finally { setLoadingPosts(false); }
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingProfile(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoadingProfile(false); }
   };
 
   const handleFriendAction = async () => {
     if (!profile) return;
     setActionLoading(true);
-
     try {
       const { relation } = profile;
-
       if (relation === 'none') {
         await sendFriendRequest(targetId);
         setProfile(p => ({ ...p, relation: 'pending_sent' }));
       } else if (relation === 'pending_received') {
         await acceptFriendRequest(targetId);
         setProfile(p => ({ ...p, relation: 'friends', friends_count: p.friends_count + 1 }));
-        // Charger les posts maintenant qu'on est amis
         setLoadingPosts(true);
         const postsRes = await getUserPosts(targetId);
         setPosts(postsRes.data);
@@ -73,169 +62,167 @@ export default function Profile() {
       } else if (relation === 'friends' || relation === 'pending_sent') {
         await removeFriend(targetId);
         setProfile(p => ({
-          ...p,
-          relation: 'none',
+          ...p, relation: 'none',
           friends_count: relation === 'friends' ? Math.max(0, p.friends_count - 1) : p.friends_count,
         }));
         setPosts([]);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setActionLoading(false); }
   };
 
   const handleMessage = async () => {
     try {
       await startConversation(targetId);
       navigate(`/messages?with=${targetId}`);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleLike = async (postId) => {
     try {
       const res = await likePost(postId);
       setPosts(prev => prev.map(p => p.id === postId ? {
-        ...p,
-        liked_by_me: res.data.liked,
-        likes_count: res.data.liked
-          ? Number(p.likes_count) + 1
-          : Math.max(0, Number(p.likes_count) - 1),
+        ...p, liked_by_me: res.data.liked,
+        likes_count: res.data.liked ? Number(p.likes_count) + 1 : Math.max(0, Number(p.likes_count) - 1),
       } : p));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleDelete = async (postId) => {
     try {
       await deletePost(postId);
       setPosts(prev => prev.filter(p => p.id !== postId));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   if (loadingProfile) return (
-    <div className="flex justify-center py-16">
-      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
+      <div className="spinner" />
     </div>
   );
 
   if (!profile) return (
-    <div className="text-center py-16 text-gray-400">Utilisateur introuvable</div>
+    <div className="card empty-state">
+      <span className="icon">🔍</span>
+      <h3>Utilisateur introuvable</h3>
+    </div>
   );
 
-  const friendButtonConfig = {
-    none:             { label: '+ Ajouter', style: 'bg-blue-500 text-white hover:bg-blue-600' },
-    pending_sent:     { label: 'Demande envoyée', style: 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500' },
-    pending_received: { label: 'Accepter la demande', style: 'bg-green-500 text-white hover:bg-green-600' },
-    friends:          { label: '✓ Amis', style: 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500' },
+  const friendBtnConfig = {
+    none:             { label: '+ Ajouter',          cls: 'btn-primary' },
+    pending_sent:     { label: 'Demande envoyée',    cls: 'btn-ghost' },
+    pending_received: { label: '✓ Accepter',         cls: 'btn-green' },
+    friends:          { label: '✓ Amis',             cls: 'btn-ghost' },
   };
-
-  const btn = friendButtonConfig[profile.relation] || friendButtonConfig.none;
+  const btn = friendBtnConfig[profile.relation] || friendBtnConfig.none;
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      {/* ─── Carte profil ─── */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      {/* Profile card */}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        {/* Banner */}
+        <div style={{
+          height: '110px',
+          background: `linear-gradient(135deg, #1a2f5e 0%, #0f1c3d 50%, #1a1f35 100%)`,
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `radial-gradient(ellipse at 30% 50%, rgba(79,142,247,.2) 0%, transparent 60%)`,
+          }} />
+        </div>
 
-        {/* Bannière */}
-        <div className="h-32 bg-gradient-to-r from-blue-400 to-indigo-500" />
-
-        {/* Avatar + infos */}
-        <div className="px-5 pb-5">
-          <div className="flex items-end justify-between -mt-10 mb-3">
-            <img
-              src={profile.avatar || 'https://i.pravatar.cc/96'}
-              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow"
-            />
+        <div style={{ padding: '0 20px 20px' }}>
+          {/* Avatar overlap */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '-28px', marginBottom: '14px' }}>
+            <div style={{
+              border: '3px solid var(--bg2)',
+              borderRadius: '50%',
+              background: 'var(--bg2)',
+            }}>
+              <img src={profile.avatar || 'https://i.pravatar.cc/88'}
+                className="avatar" style={{ width: 80, height: 80 }} />
+            </div>
 
             {/* Actions */}
-            {!isMe && (
-              <div className="flex gap-2 mt-10">
-                <button
-                  onClick={handleMessage}
-                  className="text-sm px-4 py-1.5 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
-                >
-                  💬 Message
-                </button>
-                <button
-                  onClick={handleFriendAction}
-                  disabled={actionLoading}
-                  className={`text-sm px-4 py-1.5 rounded-full transition font-medium ${btn.style} disabled:opacity-50`}
-                >
-                  {actionLoading ? '...' : btn.label}
-                </button>
-              </div>
-            )}
-
-            {isMe && (
-              <div className="mt-10">
-                <Link
-                  to="/settings"
-                  className="text-sm px-4 py-1.5 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
-                >
-                  ✏️ Modifier le profil
+            <div style={{ display: 'flex', gap: '8px', paddingBottom: '4px' }}>
+              {!isMe && (
+                <>
+                  <button onClick={handleMessage} className="btn btn-ghost" style={{ fontSize: '13px' }}>
+                    💬 Message
+                  </button>
+                  <button
+                    onClick={handleFriendAction}
+                    disabled={actionLoading}
+                    className={`btn ${btn.cls}`}
+                    style={{ fontSize: '13px' }}
+                  >
+                    {actionLoading ? '...' : btn.label}
+                  </button>
+                </>
+              )}
+              {isMe && (
+                <Link to="/settings" className="btn btn-ghost" style={{ fontSize: '13px' }}>
+                  ✏️ Modifier
                 </Link>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          <h1 className="text-xl font-bold text-gray-900">{profile.name}</h1>
-
+          {/* Name & bio */}
+          <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>
+            {profile.name}
+          </h1>
           {profile.bio && (
-            <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>
+            <p style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '10px', lineHeight: 1.5 }}>
+              {profile.bio}
+            </p>
           )}
 
-          <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-            <span>👥 <strong className="text-gray-800">{profile.friends_count}</strong> ami{profile.friends_count !== 1 ? 's' : ''}</span>
-            <span>📅 Membre depuis {new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+          {/* Stats */}
+          <div style={{ display: 'flex', gap: '20px', fontSize: '13px', color: 'var(--text-3)' }}>
+            <span>
+              <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{profile.friends_count}</strong> ami{profile.friends_count !== 1 ? 's' : ''}
+            </span>
+            <span>
+              Membre depuis <strong style={{ color: 'var(--text-2)' }}>
+                {new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+              </strong>
+            </span>
           </div>
         </div>
       </div>
 
-      {/* ─── Publications ─── */}
-      <div>
-        {loadingPosts ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : profile.relation === 'none' && !isMe ? (
-          <div className="bg-white rounded-xl shadow-sm p-10 text-center">
-            <p className="text-2xl mb-2">🔒</p>
-            <p className="font-medium text-gray-700">Publications privées</p>
-            <p className="text-sm text-gray-400 mt-1">Ajoutez {profile.name} comme ami pour voir ses publications</p>
-          </div>
-        ) : profile.relation === 'pending_sent' ? (
-          <div className="bg-white rounded-xl shadow-sm p-10 text-center">
-            <p className="text-2xl mb-2">⏳</p>
-            <p className="font-medium text-gray-700">Demande en attente</p>
-            <p className="text-sm text-gray-400 mt-1">Vous pourrez voir les publications une fois la demande acceptée</p>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-10 text-center">
-            <p className="text-2xl mb-2">📝</p>
-            <p className="font-medium text-gray-700">Aucune publication</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {posts.map(post => (
-              <PostCard
-                key={post.id}
-                post={post}
-                currentUser={me}
-                onLike={handleLike}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Posts section */}
+      {loadingPosts ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+          <div className="spinner" />
+        </div>
+      ) : profile.relation === 'none' && !isMe ? (
+        <div className="card empty-state">
+          <span className="icon">🔒</span>
+          <h3>Publications privées</h3>
+          <p>Ajoutez {profile.name} comme ami pour voir ses publications</p>
+        </div>
+      ) : profile.relation === 'pending_sent' ? (
+        <div className="card empty-state">
+          <span className="icon">⏳</span>
+          <h3>Demande en attente</h3>
+          <p>Vous pourrez voir les publications une fois acceptée</p>
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="card empty-state">
+          <span className="icon">📝</span>
+          <h3>Aucune publication</h3>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {posts.map(post => (
+            <PostCard key={post.id} post={post} currentUser={me} onLike={handleLike} onDelete={handleDelete} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
