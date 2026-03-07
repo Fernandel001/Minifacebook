@@ -11,7 +11,7 @@ router.get('/', auth, async (req, res) => {
     const result = await pool.query(`
       SELECT
         c.id AS conversation_id,
-        c.updated_at,
+        COALESCE(c.updated_at, c.created_at) AS updated_at,
         u.id AS other_user_id,
         u.name AS other_user_name,
         u.avatar AS other_user_avatar,
@@ -33,9 +33,9 @@ router.get('/', auth, async (req, res) => {
       LEFT JOIN messages unread ON unread.conversation_id = c.id
         AND unread.sender_id != $1
         AND unread.is_read = FALSE
-      GROUP BY c.id, c.updated_at, u.id, u.name, u.avatar,
+      GROUP BY c.id, c.created_at, c.updated_at, u.id, u.name, u.avatar,
                m.content, m.created_at, m.is_read, m.sender_id
-      ORDER BY c.updated_at DESC
+      ORDER BY COALESCE(c.updated_at, c.created_at) DESC
     `, [userId]);
 
     res.json(result.rows);
@@ -54,7 +54,6 @@ router.post('/', auth, async (req, res) => {
   if (userId === parseInt(targetId)) return res.status(400).json({ error: 'Impossible de vous écrire à vous-même' });
 
   try {
-    // Vérifie si une conversation existe déjà entre les deux
     const existing = await pool.query(`
       SELECT c.id FROM conversations c
       JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = $1
@@ -65,13 +64,11 @@ router.post('/', auth, async (req, res) => {
       return res.json({ conversation_id: existing.rows[0].id, existing: true });
     }
 
-    // Crée la conversation
     const conv = await pool.query(
       'INSERT INTO conversations DEFAULT VALUES RETURNING *'
     );
     const conversationId = conv.rows[0].id;
 
-    // Ajoute les deux participants
     await pool.query(
       'INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)',
       [conversationId, userId, targetId]
@@ -90,7 +87,6 @@ router.get('/:conversationId', auth, async (req, res) => {
   const { conversationId } = req.params;
 
   try {
-    // Vérifie que le user fait partie de la conversation
     const participant = await pool.query(
       'SELECT * FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
       [conversationId, userId]
